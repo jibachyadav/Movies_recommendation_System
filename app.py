@@ -6,28 +6,32 @@ import pandas as pd
 import requests
 
 # -----------------------------
-# Step 1: Download .pkl files if not exist
+# Step 1: Download .pkl files from Google Drive if they don't exist
 # -----------------------------
-if not os.path.exists("similarity.pkl"):
-    file_id = "1Jlzw4fkphpalWzQ4BW9ClPQxv8PujsPX"
-    url = f"https://drive.google.com/uc?id={file_id}"
-    gdown.download(url, "similarity.pkl", quiet=False)
+def download_file(file_id, filename):
+    if not os.path.exists(filename):
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, filename, quiet=False)
 
-if not os.path.exists("movies_dict.pkl"):
-    file_id = "1PUPgjUS-sa9G_xQ3zwxYxWBFrcJjG6OV"
-    url = f"https://drive.google.com/uc?id={file_id}"
-    gdown.download(url, "movies_dict.pkl", quiet=False)
+download_file("1Jlzw4fkphpalWzQ4BW9ClPQxv8PujsPX", "similarity.pkl")
+download_file("1PUPgjUS-sa9G_xQ3zwxYxWBFrcJjG6OV", "movies_dict.pkl")
 
 # -----------------------------
-# Step 2: Load the data
+# Step 2: Load the data with caching
 # -----------------------------
-movies_dict = pickle.load(open('movies_dict.pkl', 'rb'))
-movies = pd.DataFrame(movies_dict)
-similarity = pickle.load(open('similarity.pkl', 'rb'))
+@st.cache_data
+def load_data():
+    movies_dict = pickle.load(open('movies_dict.pkl', 'rb'))
+    similarity = pickle.load(open('similarity.pkl', 'rb'))
+    movies = pd.DataFrame(movies_dict)
+    return movies, similarity
+
+movies, similarity = load_data()
 
 # -----------------------------
-# Step 3: Helper function to fetch movie posters
+# Step 3: Helper function to fetch movie posters (cached)
 # -----------------------------
+@st.cache_data
 def fetch_poster(movie_id):
     response = requests.get(
         f'https://api.themoviedb.org/3/movie/{movie_id}?api_key=aece013814507fae72f8b0771375b46d'
@@ -62,7 +66,6 @@ selected_movie_name = st.selectbox("Choose a movie:", movies['title'].values)
 
 if st.button("Recommend"):
     names, posters = recommend(selected_movie_name)
-
     col1, col2, col3, col4, col5 = st.columns(5)
     for col, name, poster in zip([col1, col2, col3, col4, col5], names, posters):
         with col:
