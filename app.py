@@ -1,69 +1,70 @@
+import os
+import gdown
 import streamlit as st
 import pickle
 import pandas as pd
 import requests
 
-def fetch_poster(movie_id):
-    response = requests.get('https://api.themoviedb.org/3/movie/{}?api_key=aece013814507fae72f8b0771375b46d'.format(movie_id))
-    data = response.json()
-    return "https://image.tmdb.org/t/p/w500/" + data ['poster_path']
+# -----------------------------
+# Step 1: Download .pkl files if not exist
+# -----------------------------
+if not os.path.exists("similarity.pkl"):
+    file_id = "1Jlzw4fkphpalWzQ4BW9ClPQxv8PujsPX"
+    url = f"https://drive.google.com/uc?id={file_id}"
+    gdown.download(url, "similarity.pkl", quiet=False)
 
+if not os.path.exists("movies_dict.pkl"):
+    file_id = "1PUPgjUS-sa9G_xQ3zwxYxWBFrcJjG6OV"
+    url = f"https://drive.google.com/uc?id={file_id}"
+    gdown.download(url, "movies_dict.pkl", quiet=False)
 
-def recommend (movie):
-  movie_index = movies [movies['title'] == movie].index[0]
-  distances = similarity[movie_index]
-  movies_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x:x[1])[1:6]
-
-  recommended_movies = []
-  recommended_movies_posters = []
-
-  for i in movies_list:
-      movie_id = movies.iloc[i[0]].movie_id
-
-      recommended_movies.append(movies.iloc[i[0]].title)
-      # fecth poster from API
-      recommended_movies_posters.append(fetch_poster(movie_id))
-  return recommended_movies,recommended_movies_posters
-
+# -----------------------------
+# Step 2: Load the data
+# -----------------------------
 movies_dict = pickle.load(open('movies_dict.pkl', 'rb'))
-
 movies = pd.DataFrame(movies_dict)
-
 similarity = pickle.load(open('similarity.pkl', 'rb'))
 
+# -----------------------------
+# Step 3: Helper function to fetch movie posters
+# -----------------------------
+def fetch_poster(movie_id):
+    response = requests.get(
+        f'https://api.themoviedb.org/3/movie/{movie_id}?api_key=aece013814507fae72f8b0771375b46d'
+    )
+    data = response.json()
+    return "https://image.tmdb.org/t/p/w500/" + data['poster_path']
 
-st.title('Movies_Recommender_System')
+# -----------------------------
+# Step 4: Recommendation function
+# -----------------------------
+def recommend(movie):
+    movie_index = movies[movies['title'] == movie].index[0]
+    distances = similarity[movie_index]
+    movies_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:6]
 
+    recommended_movies = []
+    recommended_movies_posters = []
 
-selected_movies_name = st.selectbox(
-'How may i help you?',
-movies['title'].values)
+    for i in movies_list:
+        movie_id = movies.iloc[i[0]].movie_id
+        recommended_movies.append(movies.iloc[i[0]].title)
+        recommended_movies_posters.append(fetch_poster(movie_id))
 
-if st.button('Recommend'):
-    names,posters = recommend (selected_movies_name)
+    return recommended_movies, recommended_movies_posters
 
-    col1 , col2 , col3 , col4 , col5  = st.columns(5)
-    with col1:
-        st.text(names[0])
-        st.image(posters[0])
-    with col2:
-        st.text(names[1])
-        st.image(posters[1])
-    with col3:
-        st.text(names[2])
-        st.image(posters[2])
-    with col4:
-        st.text(names[3])
-        st.image(posters[3])
-    with col5:
-        st.text(names[4])
-        st.image(posters[4])
+# -----------------------------
+# Step 5: Streamlit UI
+# -----------------------------
+st.title("Movies Recommender System")
 
+selected_movie_name = st.selectbox("Choose a movie:", movies['title'].values)
 
+if st.button("Recommend"):
+    names, posters = recommend(selected_movie_name)
 
-if __name__ == "__main__":
-    import streamlit as st
-    st.set_option('server.port', 10000)
-    st.set_option('server.enableCORS', False)
-    import streamlit.web.bootstrap
-    streamlit.web.bootstrap.run('app.py', '', [])
+    col1, col2, col3, col4, col5 = st.columns(5)
+    for col, name, poster in zip([col1, col2, col3, col4, col5], names, posters):
+        with col:
+            st.text(name)
+            st.image(poster)
