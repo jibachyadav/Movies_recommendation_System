@@ -1,0 +1,5 @@
+*.pkl
+*.pickle
+__pycache__/
+.venv/
+.env
